@@ -1,0 +1,35 @@
+# -*- coding: utf-8 -*-
+import FreeCAD
+import Draft, Part
+from PySide import QtCore, QtGui
+
+def errorDialog(msg):
+    # Create a dialog Box
+    # First argument is the icon used: QtGui.QMessageBox.{NoIcon, Information, Warning, Critical, Question} 
+    diag = QtGui.QMessageBox(QtGui.QMessageBox.Information, 'COLLISION DETECTION Message:', msg)
+    diag.setWindowModality(QtCore.Qt.ApplicationModal)
+    diag.exec_()
+
+# TODO: Set transparency of selected objects so we can see collision_obj
+# TODO: Display a dialog that, when closed, restores the original transparency of the selected objects.
+
+# TODO: If no selection, find all bodies in document and test for collision.
+# TODO: Allow selecting more than exactly two bodies.
+SelObj = Gui.Selection.getSelectionEx()
+OBJ1 = SelObj[0].ObjectName
+OBJ2 = SelObj[1].ObjectName
+
+clone_obj1 =  Draft.clone(App.activeDocument().getObject(OBJ1))
+clone_obj2 =  Draft.clone(App.activeDocument().getObject(OBJ2))
+
+collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
+collision_obj.Shapes = [clone_obj1, clone_obj2]
+# NOTE: Recompute must come before setting ShapeColor, for some reason.
+App.ActiveDocument.recompute()
+#Gui.activeDocument().Body.Visibility=False
+#Gui.activeDocument().Body001.Visibility=False
+#OBJ1.Visibility = False
+#OBJ2.Visibility = False
+
+collision_obj.ViewObject.ShapeColor = (1.0, 0.1, 0.1)
+collision_obj.ViewObject.Transparency =  50
