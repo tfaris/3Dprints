@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 import FreeCAD
 import Draft, Part
 from PySide import QtCore, QtGui
+
 
 def errorDialog(msg):
     # Create a dialog Box
@@ -13,23 +13,26 @@ def errorDialog(msg):
 # TODO: Set transparency of selected objects so we can see collision_obj
 # TODO: Display a dialog that, when closed, restores the original transparency of the selected objects.
 
-# TODO: If no selection, find all bodies in document and test for collision.
-# TODO: Allow selecting more than exactly two bodies.
-SelObj = Gui.Selection.getSelectionEx()
-OBJ1 = SelObj[0].ObjectName
-OBJ2 = SelObj[1].ObjectName
+selection = Gui.Selection.getSelectionEx()
 
-clone_obj1 =  Draft.clone(App.activeDocument().getObject(OBJ1))
-clone_obj2 =  Draft.clone(App.activeDocument().getObject(OBJ2))
+if len(selection) == 0:
+    shapes = [Draft.clone(obj) for obj in Gui.ActiveDocument.Document.Objects if obj.isDerivedFrom('PartDesign::Body')]
+else:
+    shapes = [Draft.clone(obj.Object) for obj in selection]
 
-collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
-collision_obj.Shapes = [clone_obj1, clone_obj2]
-# NOTE: Recompute must come before setting ShapeColor, for some reason.
-App.ActiveDocument.recompute()
-#Gui.activeDocument().Body.Visibility=False
-#Gui.activeDocument().Body001.Visibility=False
-#OBJ1.Visibility = False
-#OBJ2.Visibility = False
+if not shapes:
+    errorDialog("The document has no bodies that can be checked for interference.")
+elif len(shapes) == 1:
+    errorDialog("Select more than one body to check for interference.")
+else:
+    collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
+    collision_obj.Shapes = shapes
+    # NOTE: Recompute must come before setting ShapeColor, for some reason.
+    App.ActiveDocument.recompute()
+    #Gui.activeDocument().Body.Visibility=False
+    #Gui.activeDocument().Body001.Visibility=False
+    #OBJ1.Visibility = False
+    #OBJ2.Visibility = False
 
-collision_obj.ViewObject.ShapeColor = (1.0, 0.1, 0.1)
-collision_obj.ViewObject.Transparency =  50
+    collision_obj.ViewObject.ShapeColor = (1.0, 0.1, 0.1)
+    collision_obj.ViewObject.Transparency =  50
