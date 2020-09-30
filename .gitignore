@@ -1,0 +1,4 @@
+# slicer projects
+*.3mf
+# Freecad backup files
+*.FCStd1
