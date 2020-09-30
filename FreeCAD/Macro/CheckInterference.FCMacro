@@ -10,28 +10,24 @@ def errorDialog(msg):
     diag.setWindowModality(QtCore.Qt.ApplicationModal)
     diag.exec_()
 
-# TODO: Set transparency of selected objects so we can see collision_obj
-# TODO: Display a dialog that, when closed, restores the original transparency of the selected objects.
-
 selection = Gui.Selection.getSelectionEx()
-clone_bodies = list()
 original_bodies = list()
 
-if len(selection) == 0:
+if len(selection) <= 1:
     for obj in Gui.ActiveDocument.Document.Objects:
         if obj.isDerivedFrom('PartDesign::Body'):
             original_bodies.append(obj)
-            clone_bodies.append(Draft.clone(obj))
 else:
     for obj in selection:
         original_bodies.append(obj.Object)
-        clone_bodies.append(Draft.clone(obj.Object))
 
-if not clone_bodies:
-    errorDialog("The document has no bodies that can be checked for interference.")
-elif len(clone_bodies) == 1:
+if not original_bodies:
+    errorDialog("Unable to select bodies automatically. Please select the bodies you want to check for interference.")
+elif len(original_bodies) == 1:
     errorDialog("Select more than one body to check for interference.")
 else:
+    clone_bodies = [Draft.clone(obj) for obj in original_bodies]
+
     collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
     collision_obj.Shapes = clone_bodies
     
@@ -75,7 +71,7 @@ else:
             interference_cbox.resize(interference_cbox.sizeHint())
 
             label2 = QtGui.QLabel(self)
-            label2.setText("Close this widget to remove intersection bodies.")
+            label2.setText("Close this widget to reset view.")
             label2.setStyleSheet("QLabel { background-color: transparent; border: none; }")
             self.set_position(label2, interference_cbox.geometry().x(), interference_cbox.geometry().y() + 30)
             label2.resize(label2.sizeHint())
