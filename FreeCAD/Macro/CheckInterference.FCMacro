@@ -14,25 +14,80 @@ def errorDialog(msg):
 # TODO: Display a dialog that, when closed, restores the original transparency of the selected objects.
 
 selection = Gui.Selection.getSelectionEx()
+clone_bodies = list()
+original_bodies = list()
 
 if len(selection) == 0:
-    shapes = [Draft.clone(obj) for obj in Gui.ActiveDocument.Document.Objects if obj.isDerivedFrom('PartDesign::Body')]
+    for obj in Gui.ActiveDocument.Document.Objects:
+        if obj.isDerivedFrom('PartDesign::Body'):
+            original_bodies.append(obj)
+            clone_bodies.append(Draft.clone(obj))
 else:
-    shapes = [Draft.clone(obj.Object) for obj in selection]
+    for obj in selection:
+        original_bodies.append(obj.Object)
+        clone_bodies.append(Draft.clone(obj.Object))
 
-if not shapes:
+if not clone_bodies:
     errorDialog("The document has no bodies that can be checked for interference.")
-elif len(shapes) == 1:
+elif len(clone_bodies) == 1:
     errorDialog("Select more than one body to check for interference.")
 else:
     collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
-    collision_obj.Shapes = shapes
-    # NOTE: Recompute must come before setting ShapeColor, for some reason.
+    collision_obj.Shapes = clone_bodies
+    # # NOTE: Recompute must come before setting ShapeColor, for some reason.
     App.ActiveDocument.recompute()
-    #Gui.activeDocument().Body.Visibility=False
-    #Gui.activeDocument().Body001.Visibility=False
-    #OBJ1.Visibility = False
-    #OBJ2.Visibility = False
+    
+    collision_obj.ViewObject.ShapeColor = (1.0, 0.0, 0.0)
 
-    collision_obj.ViewObject.ShapeColor = (1.0, 0.1, 0.1)
-    collision_obj.ViewObject.Transparency =  50
+    original_transparencies = [obj.ViewObject.Transparency for obj in original_bodies]
+    showing_interference = True
+
+    def toggle_collision_visibility(showing_interference):
+        for i in range(0, len(original_bodies)):
+            og_object = original_bodies[i]
+            og_object.ViewObject.Transparency = 80 if showing_interference else original_transparencies[i]
+        App.ActiveDocument.recompute()
+        return showing_interference
+
+    toggle_collision_visibility(showing_interference)
+
+    class CheckInterferenceWidget(QtGui.QDockWidget):
+        def init_ui(self):
+            self.setWindowTitle("Check Interference")
+
+            label = QtGui.QLabel(self)
+            label.setText("Close this widget to remove intersection bodies.")
+            self.set_position(label, 10, 20)
+            label.resize(label.sizeHint())
+
+            interference_cbox = QtGui.QCheckBox("Show Interference", self)
+            interference_cbox.setCheckState(QtCore.Qt.Checked)
+            interference_cbox.stateChanged.connect(self.check_event)
+            self.set_position(interference_cbox, label.geometry().x(), label.geometry().y() + 20)
+            interference_cbox.resize(interference_cbox.sizeHint())
+
+            self.resize(QtCore.QSize(300,500).expandedTo(self.minimumSizeHint()))
+
+        def set_position(self, ctrl, x, y):
+            geo = ctrl.geometry()
+            geo.setX(x)
+            geo.setY(y)
+            ctrl.setGeometry(geo)
+
+        def closeEvent(self, event):
+            toggle_collision_visibility(False)
+            for shape in collision_obj.Shapes:
+                App.activeDocument().removeObject(shape.Name)
+            App.activeDocument().removeObject(collision_obj.Name)
+
+        def check_event(self, event):
+            global showing_interference
+            showing_interference = toggle_collision_visibility(not showing_interference)
+
+    widget = CheckInterferenceWidget()
+    widget.init_ui()
+    FreeCADGui.getMainWindow().addDockWidget(
+        QtCore.Qt.LeftDockWidgetArea,
+        widget
+    )
+    widget.setFloating(True)
