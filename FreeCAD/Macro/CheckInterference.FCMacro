@@ -34,8 +34,11 @@ elif len(clone_bodies) == 1:
 else:
     collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
     collision_obj.Shapes = clone_bodies
-    # # NOTE: Recompute must come before setting ShapeColor, for some reason.
+    
+    # NOTE: Recompute must come before setting ShapeColor, for some reason.
     App.ActiveDocument.recompute()
+
+    collision_detected = collision_obj.Shape.Area > .00000001
     
     collision_obj.ViewObject.ShapeColor = (1.0, 0.0, 0.0)
 
@@ -55,18 +58,29 @@ else:
         def init_ui(self):
             self.setWindowTitle("Check Interference")
 
-            label = QtGui.QLabel(self)
-            label.setText("Close this widget to remove intersection bodies.")
-            self.set_position(label, 10, 20)
-            label.resize(label.sizeHint())
+            label1 = QtGui.QLabel(self)
+            if collision_detected:
+                label1.setText("COLLISION DETECTED")
+                label1.setStyleSheet("QLabel { color: red; background-color: transparent; font-size: 20px; border: none; }")
+            else:
+                label1.setText("NO COLLISION DETECTED")
+                label1.setStyleSheet("QLabel { color: rgb(95, 101, 4); background-color: transparent; font-size: 20px; border: none; }")
+            self.set_position(label1, 10, 20)
+            label1.resize(label1.sizeHint())
 
             interference_cbox = QtGui.QCheckBox("Show Interference", self)
             interference_cbox.setCheckState(QtCore.Qt.Checked)
             interference_cbox.stateChanged.connect(self.check_event)
-            self.set_position(interference_cbox, label.geometry().x(), label.geometry().y() + 20)
+            self.set_position(interference_cbox, label1.geometry().x(), label1.geometry().y() + 30)
             interference_cbox.resize(interference_cbox.sizeHint())
 
-            self.resize(QtCore.QSize(300,500).expandedTo(self.minimumSizeHint()))
+            label2 = QtGui.QLabel(self)
+            label2.setText("Close this widget to remove intersection bodies.")
+            label2.setStyleSheet("QLabel { background-color: transparent; border: none; }")
+            self.set_position(label2, interference_cbox.geometry().x(), interference_cbox.geometry().y() + 30)
+            label2.resize(label2.sizeHint())
+
+            self.resize(QtCore.QSize(300,300).expandedTo(self.minimumSizeHint()))
 
         def set_position(self, ctrl, x, y):
             geo = ctrl.geometry()
