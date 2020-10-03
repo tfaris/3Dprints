@@ -1,3 +1,5 @@
+import itertools
+
 import FreeCAD
 import Draft, Part
 from PySide import QtCore, QtGui
@@ -15,7 +17,7 @@ original_bodies = list()
 
 if len(selection) <= 1:
     for obj in Gui.ActiveDocument.Document.Objects:
-        if obj.isDerivedFrom('PartDesign::Body'):
+        if (obj.isDerivedFrom('PartDesign::Body') or isinstance(obj, Part.Feature)) and obj.ViewObject.Visibility:
             original_bodies.append(obj)
 else:
     for obj in selection:
@@ -26,17 +28,22 @@ if not original_bodies:
 elif len(original_bodies) == 1:
     errorDialog("Select more than one body to check for interference.")
 else:
-    clone_bodies = [Draft.clone(obj) for obj in original_bodies]
-
-    collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
-    collision_obj.Shapes = clone_bodies
-    
+    compare_groups = itertools.combinations(original_bodies, 2)
     # NOTE: Recompute must come before setting ShapeColor, for some reason.
-    App.ActiveDocument.recompute()
 
-    collision_detected = collision_obj.Shape.Area > .00000001
-    
-    collision_obj.ViewObject.ShapeColor = (1.0, 0.0, 0.0)
+    logger.info("Computing intersection for %s bodies.", len(original_bodies))
+
+    collision_detected = False
+    intersection_bodies = list()
+    for bodies in compare_groups:
+        collision_obj = App.activeDocument().addObject("Part::MultiCommon","Intersection")
+        collision_obj.Shapes = [Draft.clone(obj) for obj in bodies]
+        App.ActiveDocument.recompute()
+        collision_obj.ViewObject.ShapeColor = (1.0, 0.0, 0.0)
+        intersection_bodies.append(collision_obj)
+
+        if not collision_detected:
+            collision_detected = collision_obj.Shape.Area > .00000001
 
     original_transparencies = [obj.ViewObject.Transparency for obj in original_bodies]
     showing_interference = True
@@ -76,6 +83,8 @@ else:
             self.set_position(label2, interference_cbox.geometry().x(), interference_cbox.geometry().y() + 30)
             label2.resize(label2.sizeHint())
 
+            # TODO: Add a list to the widget of the objects being compared
+
             self.resize(QtCore.QSize(300,300).expandedTo(self.minimumSizeHint()))
 
         def set_position(self, ctrl, x, y):
@@ -86,9 +95,10 @@ else:
 
         def closeEvent(self, event):
             toggle_collision_visibility(False)
-            for shape in collision_obj.Shapes:
-                App.activeDocument().removeObject(shape.Name)
-            App.activeDocument().removeObject(collision_obj.Name)
+            for collision_obj in intersection_bodies:
+                for shape in collision_obj.Shapes:
+                    App.activeDocument().removeObject(shape.Name)
+                App.activeDocument().removeObject(collision_obj.Name)
 
         def check_event(self, event):
             global showing_interference
