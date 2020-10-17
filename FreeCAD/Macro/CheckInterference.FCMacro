@@ -31,8 +31,6 @@ else:
     compare_groups = itertools.combinations(original_bodies, 2)
     # NOTE: Recompute must come before setting ShapeColor, for some reason.
 
-    logger.info("Computing intersection for %s bodies.", len(original_bodies))
-
     collision_detected = False
     intersection_bodies = list()
     for bodies in compare_groups:
